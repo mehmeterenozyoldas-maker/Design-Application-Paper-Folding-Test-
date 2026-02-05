@@ -1,12 +1,12 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Viewer3D } from './components/Viewer3D';
 import { Blueprint2D } from './components/Blueprint2D';
 import { MiniPreview } from './components/MiniPreview';
 import { SketchPad } from './components/SketchPad';
 import { AppState, AlgoType, PAPER_A4 } from './types';
 import { generateKirigamiGeometry } from './utils/mathEngine';
-import { Layers, Settings2, Download, Calculator, Sigma, Activity, Boxes, Mountain, Component, Camera, Projector, Upload, HelpCircle, X, MousePointer2, Sliders, PlayCircle, FileOutput, Image as ImageIcon, Ruler, PenTool, Undo, FileCode, ChevronRight, Menu } from 'lucide-react';
+import { Layers, Settings2, Download, Calculator, Sigma, Activity, Boxes, Mountain, Component, Camera, Projector, Upload, HelpCircle, X, MousePointer2, Sliders, PlayCircle, PauseCircle, FileOutput, Image as ImageIcon, Ruler, PenTool, Undo, FileCode, ChevronRight, Menu } from 'lucide-react';
 
 const App = () => {
   const initialState: AppState = {
@@ -18,12 +18,13 @@ const App = () => {
     spread: 300,
     curvature: 2.0,
     roughness: 0.0,
-    fractalOctaves: 3,
+    fractalOctaves: 4,
     customFormula: 'Math.sin(x * 10 * f) * Math.cos(x * 5)',
     sketchPoints: [{x:0, y:0}, {x:0.5, y:0.8}, {x:1, y:0}],
     foldProgress: 0.8,
     paperThickness: 0.2,
     showWireframe: false,
+    showBackingCard: true,
     paperSize: PAPER_A4,
     heightMapData: null,
     overlayTexture: null,
@@ -35,6 +36,37 @@ const App = () => {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [activeTab, setActiveTab] = useState<'design' | 'pattern'>('design');
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Stats calculation
+  const stats = useMemo(() => {
+     const { stats } = generateKirigamiGeometry(appState);
+     return stats;
+  }, [appState.algorithm, appState.rows, appState.cols, appState.amplitude, appState.paperSize]);
+
+  // Animation Loop
+  useEffect(() => {
+    if (!isAnimating) return;
+    
+    let startTime = performance.now();
+    let animationFrameId: number;
+
+    const animate = (time: number) => {
+        const elapsed = (time - startTime) / 3000; // 3 second cycle
+        // Sine wave between 0 and 1
+        // sin(x) goes -1 to 1. 
+        // We want it to start at max (folded) or min?
+        // Let's make it smooth breathing.
+        const progress = (Math.sin(elapsed * Math.PI * 2 - Math.PI/2) + 1) / 2;
+        
+        setAppState(prev => ({ ...prev, foldProgress: progress }));
+        animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isAnimating]);
 
   // Undo System
   const updateState = (key: keyof AppState, value: any) => {
@@ -138,10 +170,42 @@ const App = () => {
         ctx.stroke();
     });
 
-    ctx.scale(1/scale, 1/scale);
+    // Draw Legend on Export
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for UI elements
+    const legendX = 40;
+    const legendY = h - 200;
+    
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText('FABRICATION KEY', legendX, legendY);
+    
+    const drawLegendItem = (y: number, color: string, dash: number[], label: string, desc: string) => {
+        ctx.beginPath();
+        ctx.moveTo(legendX, y);
+        ctx.lineTo(legendX + 80, y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.setLineDash(dash);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText(label, legendX + 100, y + 8);
+        
+        ctx.fillStyle = '#64748b';
+        ctx.font = '20px sans-serif';
+        ctx.fillText(desc, legendX + 300, y + 8);
+    };
+
+    drawLegendItem(legendY + 50, '#ef4444', [], 'CUT', 'Solid Line - Cut completely');
+    drawLegendItem(legendY + 100, '#3b82f6', [16, 16], 'MOUNTAIN', 'Dashed - Fold Up (Peak)');
+    drawLegendItem(legendY + 150, '#22c55e', [8, 8], 'VALLEY', 'Dotted - Fold Down (Trough)');
+
+    // Branding
     ctx.fillStyle = '#64748b';
     ctx.font = '24px monospace';
-    ctx.fillText(`KiriGen X | ${appState.algorithm.toUpperCase()}`, 40, h - 40);
+    ctx.textAlign = 'right';
+    ctx.fillText(`KiriGen X | ${appState.algorithm.toUpperCase()}`, w - 40, h - 40);
 
     const link = document.createElement('a');
     link.download = `kirigen_export_${Date.now()}.png`;
@@ -238,6 +302,7 @@ const App = () => {
   };
 
   const isGeometric = ['sphere', 'pyramid', 'steps', 'torus', 'pagoda', 'vase', 'canyon'].includes(appState.algorithm);
+  const isFractal = appState.algorithm === 'fractal';
 
   return (
     <div className="h-screen flex flex-col font-sans bg-neutral-50 text-neutral-900 overflow-hidden">
@@ -298,7 +363,7 @@ const App = () => {
         <div className="pointer-events-auto flex items-center gap-4">
             <div className="flex flex-col">
                 <h1 className="font-semibold text-xl tracking-tight text-neutral-900">KiriGen X</h1>
-                <span className="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">Atelier v2.0</span>
+                <span className="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">Atelier v2.1</span>
             </div>
             <div className="h-6 w-px bg-neutral-200 mx-2"></div>
             <div className="flex bg-white rounded-full p-1 shadow-sm border border-neutral-200">
@@ -361,7 +426,10 @@ const App = () => {
                                 </button>
                             ))}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div className="grid grid-cols-4 gap-2 mt-2">
+                             <button onClick={() => { updateState('algorithm', 'fractal'); commitState(); }} className={`px-2 py-2 text-[10px] rounded-xl border flex flex-col items-center gap-1 transition-all ${appState.algorithm === 'fractal' ? 'bg-neutral-50 border-neutral-900 text-neutral-900' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300'}`}>
+                                <Sigma size={14} /> Fractal
+                             </button>
                              <button onClick={() => { updateState('algorithm', 'sketch'); commitState(); }} className={`px-2 py-2 text-[10px] rounded-xl border flex flex-col items-center gap-1 transition-all ${appState.algorithm === 'sketch' ? 'bg-neutral-50 border-neutral-900 text-neutral-900' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300'}`}>
                                 <PenTool size={14} /> Sketch
                              </button>
@@ -400,6 +468,18 @@ const App = () => {
                                 <input type="range" min="0.1" max="5.0" step="0.1" value={appState.frequency} onChange={(e) => updateState('frequency', parseFloat(e.target.value))} onPointerUp={commitState} />
                             </div>
                         </div>
+                        )}
+                        
+                        {isFractal && (
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] uppercase tracking-wide text-neutral-500 font-medium">
+                                        <span>Octaves</span>
+                                        <span>{appState.fractalOctaves}</span>
+                                    </div>
+                                    <input type="range" min="1" max="8" step="1" value={appState.fractalOctaves} onChange={(e) => updateState('fractalOctaves', parseInt(e.target.value))} onPointerUp={commitState} />
+                                </div>
+                            </div>
                         )}
                         
                         {isGeometric && (
@@ -455,6 +535,10 @@ const App = () => {
                             <span className="text-xs font-medium text-neutral-600 group-hover:text-neutral-900">Wireframe Mode</span>
                             <input type="checkbox" checked={appState.showWireframe} onChange={(e) => updateState('showWireframe', e.target.checked)} className="rounded text-neutral-900 focus:ring-neutral-900 border-neutral-300" />
                         </label>
+                        <label className="flex items-center justify-between group cursor-pointer">
+                            <span className="text-xs font-medium text-neutral-600 group-hover:text-neutral-900">Show Card Base</span>
+                            <input type="checkbox" checked={appState.showBackingCard} onChange={(e) => updateState('showBackingCard', e.target.checked)} className="rounded text-neutral-900 focus:ring-neutral-900 border-neutral-300" />
+                        </label>
                          <label className="flex items-center justify-between group cursor-pointer">
                              <span className="text-xs font-medium text-neutral-600 group-hover:text-neutral-900">Project Texture</span>
                              <div className="relative">
@@ -473,17 +557,27 @@ const App = () => {
             <Viewer3D appState={appState} />
             
             {/* Simulation Slider Floating */}
-            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-80 md:w-96 bg-white/10 backdrop-blur-md p-4 rounded-full shadow-2xl border border-white/20 z-30 group transition-all hover:bg-white/20 hover:scale-105">
-                 <div className="flex justify-between text-[9px] font-bold text-white/50 mb-2 tracking-widest px-2 group-hover:text-white/80 transition-colors">
-                    <span>FLAT</span>
-                    <span>FOLDED</span>
-                </div>
-                <input 
-                    type="range" min="0" max="1" step="0.005"
-                    value={appState.foldProgress}
-                    onChange={(e) => updateState('foldProgress', parseFloat(e.target.value))}
-                    className="w-full accent-white h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                />
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-96 md:w-[450px] bg-white/10 backdrop-blur-md p-4 rounded-full shadow-2xl border border-white/20 z-30 group transition-all hover:bg-white/20 hover:scale-105 flex items-center gap-4">
+                 
+                 <button 
+                    onClick={() => setIsAnimating(!isAnimating)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white text-white hover:text-black transition-all"
+                 >
+                    {isAnimating ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+                 </button>
+
+                 <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex justify-between text-[9px] font-bold text-white/50 tracking-widest px-1 group-hover:text-white/80 transition-colors">
+                        <span>FLAT (0°)</span>
+                        <span>FOLDED (90°)</span>
+                    </div>
+                    <input 
+                        type="range" min="0" max="1" step="0.005"
+                        value={appState.foldProgress}
+                        onChange={(e) => { setIsAnimating(false); updateState('foldProgress', parseFloat(e.target.value)); }}
+                        className="w-full accent-white h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                    />
+                 </div>
             </div>
         </main>
 
@@ -495,6 +589,48 @@ const App = () => {
                         <span className="px-3 py-1 bg-neutral-100 rounded-full text-[10px] font-bold text-neutral-500 uppercase tracking-wide">A4 Scaled</span>
                         <span className="px-3 py-1 bg-neutral-100 rounded-full text-[10px] font-bold text-neutral-500 uppercase tracking-wide">{appState.algorithm}</span>
                     </div>
+                    
+                    {/* Stats Panel */}
+                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+                        <div className="px-4 py-3 bg-neutral-900 rounded-xl text-white shadow-xl flex flex-col gap-1">
+                             <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Fabrication Metrics</span>
+                             <div className="grid grid-cols-2 gap-x-8 gap-y-1 mt-1">
+                                 <div className="text-[10px] text-neutral-400">Total Cut Length</div>
+                                 <div className="text-xs font-mono font-medium text-red-400 text-right">{(stats.totalCutLength / 1000).toFixed(2)} m</div>
+                                 <div className="text-[10px] text-neutral-400">Total Fold Length</div>
+                                 <div className="text-xs font-mono font-medium text-blue-400 text-right">{(stats.totalFoldLength / 1000).toFixed(2)} m</div>
+                             </div>
+                        </div>
+
+                        {/* LEGEND OVERLAY */}
+                        <div className="mt-2 px-4 py-3 bg-white/90 backdrop-blur rounded-xl border border-neutral-200 shadow-xl flex flex-col gap-2">
+                            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Fold Key</span>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 border-t-2 border-red-500"></div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-neutral-800">CUT</div>
+                                        <div className="text-[9px] text-neutral-500 leading-none">Solid Line</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 border-t-2 border-blue-500 border-dashed"></div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-neutral-800">MOUNTAIN</div>
+                                        <div className="text-[9px] text-neutral-500 leading-none">Fold Up (Peak)</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 border-t-2 border-green-500 border-dotted"></div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-neutral-800">VALLEY</div>
+                                        <div className="text-[9px] text-neutral-500 leading-none">Fold Down (Trough)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <Blueprint2D appState={appState} />
                 </div>
             </div>

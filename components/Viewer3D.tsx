@@ -25,7 +25,6 @@ const usePaperMaterial = () => {
         if (!ctx) return { map: null, bumpMap: null, roughnessMap: null };
 
         // 1. Diffuse Map (Color)
-        // Warm white paper base
         ctx.fillStyle = '#fdfdfd';
         ctx.fillRect(0, 0, width, height);
         
@@ -60,32 +59,15 @@ const usePaperMaterial = () => {
         map.repeat.set(2, 2);
 
         // 2. Bump / Roughness Map (Texture)
-        // Mid-grey base
         ctx.fillStyle = '#808080';
         ctx.fillRect(0, 0, width, height);
         
-        // High frequency noise
         for(let i=0; i<200000; i++) {
              const v = Math.random();
              ctx.fillStyle = v > 0.5 ? '#959595' : '#6b6b6b';
              ctx.fillRect(Math.random() * width, Math.random() * height, 2, 2);
         }
         
-        // Embossed Fibers
-        ctx.lineWidth = 1.5;
-        for(let i=0; i<600; i++) {
-             const v = Math.random();
-             ctx.strokeStyle = v > 0.5 ? '#a0a0a0' : '#606060';
-             ctx.beginPath();
-             const x = Math.random() * width;
-             const y = Math.random() * height;
-             const len = Math.random() * 15 + 5;
-             const angle = Math.random() * Math.PI * 2;
-             ctx.moveTo(x,y);
-             ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
-             ctx.stroke();
-        }
-
         const bumpMap = new THREE.CanvasTexture(canvas);
         bumpMap.wrapS = THREE.RepeatWrapping;
         bumpMap.wrapT = THREE.RepeatWrapping;
@@ -109,7 +91,6 @@ const ProjectionMaterial: React.FC<{ appState: AppState }> = ({ appState }) => {
         }
     }
     
-    // Configure texture mapping
     if (overlayTexture) {
         overlayTexture.wrapS = THREE.ClampToEdgeWrapping;
         overlayTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -130,6 +111,32 @@ const ProjectionMaterial: React.FC<{ appState: AppState }> = ({ appState }) => {
         />
     );
 };
+
+const BackingCard: React.FC<{ appState: AppState }> = ({ appState }) => {
+    const { width, height } = appState.paperSize;
+    // slightly larger than A4
+    const w = width + 4;
+    const h = height/2 + 2;
+    const foldAngle = appState.foldProgress * (Math.PI / 2);
+
+    return (
+        <group>
+             {/* Floor Card */}
+             <mesh position={[0, -h/2, -0.5]} receiveShadow>
+                <boxGeometry args={[w, h, 0.5]} />
+                <meshStandardMaterial color="#1e293b" roughness={0.8} />
+             </mesh>
+             
+             {/* Wall Card */}
+             <group rotation={[foldAngle, 0, 0]}>
+                <mesh position={[0, h/2, -0.5]} receiveShadow castShadow>
+                     <boxGeometry args={[w, h, 0.5]} />
+                     <meshStandardMaterial color="#334155" roughness={0.8} />
+                </mesh>
+             </group>
+        </group>
+    );
+}
 
 const KirigamiMesh: React.FC<{ appState: AppState }> = ({ appState }) => {
   const geometry = useMemo(() => {
@@ -171,6 +178,8 @@ const KirigamiMesh: React.FC<{ appState: AppState }> = ({ appState }) => {
   return (
     <group rotation={[-Math.PI / 2, 0, 0]}> 
       
+      {appState.showBackingCard && <BackingCard appState={appState} />}
+
       {/* The Paper Mesh */}
       <mesh geometry={geometry} castShadow receiveShadow>
         <React.Suspense fallback={<meshStandardMaterial color="#f8fafc" />}>
@@ -202,7 +211,6 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
         
         <ambientLight intensity={0.5} />
         
-        {/* Main Key Light - Cool Studio Light */}
         <spotLight 
             position={[100, 400, 200]} 
             angle={0.4} 
@@ -214,10 +222,7 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
             shadow-bias={-0.0001} 
         />
         
-        {/* Fill Light */}
         <spotLight position={[-200, 200, 100]} angle={0.5} penumbra={1} intensity={1} color="#eef2ff" />
-        
-        {/* Rim Light */}
         <spotLight position={[0, 100, -200]} angle={0.5} penumbra={1} intensity={1.5} color="#e0e7ff" />
 
         <Environment preset="studio" blur={1} background={false} />
@@ -232,7 +237,6 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
             <meshStandardMaterial color="#171717" roughness={0.8} metalness={0.2} />
         </mesh>
         
-        {/* Grid Fade Out */}
         <gridHelper args={[1000, 50, '#333333', '#171717']} position={[0, -2.4, 0]} />
 
         <ContactShadows 
@@ -273,7 +277,12 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
         </EffectComposer>
       </Canvas>
       
-       <div className="absolute top-4 right-4 pointer-events-none z-10">
+       <div className="absolute top-4 right-4 pointer-events-none z-10 flex flex-col items-end gap-2">
+         {appState.showBackingCard && (
+             <div className="bg-emerald-500/10 backdrop-blur px-3 py-1 rounded-full text-[9px] font-mono text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
+                Card Base: Active
+             </div>
+         )}
          <div className="bg-white/5 backdrop-blur px-3 py-1 rounded-full text-[9px] font-mono text-white/40 border border-white/10 uppercase tracking-widest">
             Fidelity: High | {Math.round((appState.cols * appState.rows * 4) * 6)} Polys
          </div>

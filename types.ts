@@ -16,6 +16,7 @@ export interface AppState {
   foldProgress: number; // 0 to 1
   paperThickness: number; // Physical thickness in mm
   showWireframe: boolean;
+  showBackingCard: boolean; // New visualization toggle
   paperSize: { width: number; height: number; margin: number };
   
   // CV & Projection
@@ -29,6 +30,11 @@ export interface GeometryData {
   normals: Float32Array;
   indices: number[];
   blueprintLines: BlueprintLine[];
+  stats: {
+      totalCutLength: number; // mm
+      totalFoldLength: number; // mm
+      polyCount: number;
+  }
 }
 
 export interface BlueprintLine {
