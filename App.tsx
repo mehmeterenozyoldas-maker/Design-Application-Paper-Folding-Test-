@@ -301,7 +301,7 @@ const App = () => {
     URL.revokeObjectURL(url);
   };
 
-  const isGeometric = ['sphere', 'pyramid', 'steps', 'torus', 'pagoda', 'vase', 'canyon'].includes(appState.algorithm);
+  const isGeometric = ['sphere', 'pyramid', 'steps', 'torus', 'pagoda', 'vase', 'canyon', 'crown', 'spikes', 'fabric', 'crystal', 'butterfly', 'wavelet'].includes(appState.algorithm);
   const isFractal = appState.algorithm === 'fractal';
 
   return (
@@ -413,7 +413,7 @@ const App = () => {
                     <div className="space-y-3">
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest block">Core Geometry</label>
                         <div className="flex flex-wrap gap-2">
-                            {(['stairs', 'sine', 'gaussian', 'ripple', 'voronoi', 'noise', 'sphere', 'pyramid', 'steps', 'torus', 'pagoda', 'vase', 'canyon'] as AlgoType[]).map(algo => (
+                            {(['stairs', 'sine', 'gaussian', 'ripple', 'voronoi', 'noise', 'sphere', 'pyramid', 'steps', 'torus', 'pagoda', 'vase', 'canyon', 'crown', 'spikes', 'fabric', 'crystal', 'butterfly', 'wavelet'] as AlgoType[]).map(algo => (
                                 <button
                                     key={algo}
                                     onClick={() => { updateState('algorithm', algo); commitState(); }}

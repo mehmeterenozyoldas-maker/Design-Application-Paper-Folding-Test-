@@ -99,14 +99,16 @@ const ProjectionMaterial: React.FC<{ appState: AppState }> = ({ appState }) => {
     }
 
     return (
-        <meshStandardMaterial 
-            color={overlayTexture ? "#ffffff" : "#ffffff"}
+        <meshPhysicalMaterial 
+            color={overlayTexture ? "#ffffff" : "#fdfbf9"} // Slightly warm off-white
             map={overlayTexture || map}
             bumpMap={bumpMap}
-            bumpScale={0.02}
+            bumpScale={0.008} // More subtle bump
             roughnessMap={roughnessMap}
-            roughness={0.95} 
-            metalness={0.0}
+            roughness={0.85} 
+            metalness={0.02}
+            clearcoat={0.1} // Simulates the slight sheen of pressed paper fibers
+            clearcoatRoughness={0.8}
             side={THREE.DoubleSide}
         />
     );
@@ -124,14 +126,14 @@ const BackingCard: React.FC<{ appState: AppState }> = ({ appState }) => {
              {/* Floor Card */}
              <mesh position={[0, -h/2, -0.5]} receiveShadow>
                 <boxGeometry args={[w, h, 0.5]} />
-                <meshStandardMaterial color="#1e293b" roughness={0.8} />
+                <meshPhysicalMaterial color="#1e293b" roughness={0.9} clearcoat={0.05} clearcoatRoughness={0.9} />
              </mesh>
              
              {/* Wall Card */}
              <group rotation={[foldAngle, 0, 0]}>
                 <mesh position={[0, h/2, -0.5]} receiveShadow castShadow>
                      <boxGeometry args={[w, h, 0.5]} />
-                     <meshStandardMaterial color="#334155" roughness={0.8} />
+                     <meshPhysicalMaterial color="#334155" roughness={0.9} clearcoat={0.05} clearcoatRoughness={0.9} />
                 </mesh>
              </group>
         </group>
@@ -203,29 +205,33 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
     <div className="w-full h-full bg-[#1c1c1c] relative">
       <Canvas 
         shadows 
-        dpr={[1, 1.5]} 
+        dpr={[1, 2]} 
         camera={{ position: [100, 300, 300], fov: 35 }}
-        gl={{ toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+        gl={{ toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1, antialias: true }}
       >
-        <color attach="background" args={['#171717']} />
+        <color attach="background" args={['#0f0f11']} />
         
-        <ambientLight intensity={0.5} />
+        <ambientLight intensity={0.15} />
         
+        {/* Key Light - Warm, strong, casts main shadows */}
         <spotLight 
-            position={[100, 400, 200]} 
-            angle={0.4} 
-            penumbra={1} 
-            intensity={2.5} 
-            color="#ffffff"
+            position={[150, 400, 250]} 
+            angle={0.5} 
+            penumbra={0.8} 
+            intensity={3.5} 
+            color="#fff4e6"
             castShadow 
             shadow-mapSize={[2048, 2048]} 
-            shadow-bias={-0.0001} 
+            shadow-bias={-0.00005} 
         />
         
-        <spotLight position={[-200, 200, 100]} angle={0.5} penumbra={1} intensity={1} color="#eef2ff" />
-        <spotLight position={[0, 100, -200]} angle={0.5} penumbra={1} intensity={1.5} color="#e0e7ff" />
+        {/* Fill Light - Cool, soft, lifts shadows */}
+        <spotLight position={[-200, 200, 100]} angle={0.6} penumbra={1} intensity={1.2} color="#e0e7ff" />
+        
+        {/* Rim Light - Bright, from behind to highlight edges */}
+        <spotLight position={[0, 150, -300]} angle={0.6} penumbra={0.5} intensity={4.0} color="#ffffff" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0001} />
 
-        <Environment preset="studio" blur={1} background={false} />
+        <Environment preset="studio" blur={0.8} background={false} environmentIntensity={0.4} />
 
         <group position={[0, 0, 0]}>
             <KirigamiMesh appState={appState} />
@@ -234,16 +240,16 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
         {/* Floor / Shadow Catcher */}
         <mesh position={[0, -2.5, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
             <planeGeometry args={[1000, 1000]} />
-            <meshStandardMaterial color="#171717" roughness={0.8} metalness={0.2} />
+            <meshPhysicalMaterial color="#0f0f11" roughness={0.9} metalness={0.1} />
         </mesh>
         
-        <gridHelper args={[1000, 50, '#333333', '#171717']} position={[0, -2.4, 0]} />
+        <gridHelper args={[1000, 50, '#222222', '#0f0f11']} position={[0, -2.4, 0]} />
 
         <ContactShadows 
             resolution={1024} 
             scale={400} 
-            blur={2.5} 
-            opacity={0.5} 
+            blur={3} 
+            opacity={0.6} 
             far={50} 
             color="#000000" 
             position={[0, -2.45, 0]} 
@@ -258,22 +264,22 @@ export const Viewer3D: React.FC<ViewerProps> = ({ appState }) => {
             dampingFactor={0.05}
         />
 
-        <EffectComposer disableNormalPass={false} multisampling={0}>
+        <EffectComposer disableNormalPass={false} multisampling={4}>
              <SSAO 
-                radius={0.04} 
-                intensity={15} 
-                luminanceInfluence={0.4} 
+                radius={0.05} 
+                intensity={25} 
+                luminanceInfluence={0.6} 
                 color="black" 
              />
              <Bloom 
-                luminanceThreshold={0.98} 
+                luminanceThreshold={0.85} 
                 mipmapBlur 
-                intensity={0.4} 
-                radius={0.4} 
+                intensity={0.6} 
+                radius={0.5} 
              />
-             <TiltShift2 blur={0.1} />
-             <Vignette eskil={false} offset={0.1} darkness={0.5} />
-             <Noise opacity={0.03} />
+             <TiltShift2 blur={0.15} />
+             <Vignette eskil={false} offset={0.2} darkness={0.6} />
+             <Noise opacity={0.025} />
         </EffectComposer>
       </Canvas>
       

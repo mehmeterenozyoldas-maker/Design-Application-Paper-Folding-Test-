@@ -143,6 +143,42 @@ export const generateKirigamiGeometry = (state: AppState): GeometryData => {
         case 'stairs':
              profileRadius = state.amplitude;
              break;
+        case 'crown':
+             const safeCurvature = Math.max(0.1, state.curvature);
+             const macro = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(normX), safeCurvature)), 1/safeCurvature);
+             const micro = Math.abs(Math.cos(normX * Math.PI * state.frequency * 3));
+             profileRadius = state.amplitude * macro * micro;
+             break;
+        case 'spikes':
+             const scaledX = Math.abs(normX * state.frequency * 5);
+             const triangle = 1 - Math.abs((scaledX % 1) * 2 - 1);
+             profileRadius = state.amplitude * Math.pow(triangle, Math.max(0.1, state.curvature));
+             break;
+        case 'fabric':
+             // Soft draping folds using interference patterns
+             const fold1 = Math.sin(normX * Math.PI * state.frequency);
+             const fold2 = Math.cos(normX * Math.PI * state.frequency * 0.5);
+             profileRadius = state.amplitude * (0.6 + 0.4 * fold1 * fold2);
+             break;
+        case 'crystal':
+             // Faceted, angular structure
+             const facets = Math.max(2, Math.floor(state.frequency * 4));
+             const raw = Math.abs(normX);
+             const stepped = Math.floor(raw * facets) / facets;
+             // Add slight variation to make it look crystalline
+             const varFactor = (Math.sin(stepped * 10) * 0.1);
+             profileRadius = state.amplitude * (1 - stepped + varFactor);
+             break;
+        case 'butterfly':
+             const xB = Math.abs(normX);
+             const wing = Math.sin(xB * Math.PI) * (1 + 0.5 * Math.cos(xB * Math.PI * state.frequency * 2));
+             profileRadius = Math.max(0, state.amplitude * wing);
+             break;
+        case 'wavelet':
+             const xW = normX * state.frequency * 4;
+             const mexicanHat = (1 - xW * xW) * Math.exp(-xW * xW / 2);
+             profileRadius = Math.max(0, state.amplitude * mexicanHat);
+             break;
         default:
              profileRadius = state.amplitude * (Math.cos(normX * Math.PI) * 0.5 + 0.5);
              break;

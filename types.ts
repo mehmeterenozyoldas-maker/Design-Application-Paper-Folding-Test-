@@ -1,5 +1,5 @@
 
-export type AlgoType = 'stairs' | 'sine' | 'gaussian' | 'ripple' | 'voronoi' | 'noise' | 'fractal' | 'custom' | 'sphere' | 'pyramid' | 'steps' | 'torus' | 'pagoda' | 'vase' | 'canyon' | 'image' | 'sketch';
+export type AlgoType = 'stairs' | 'sine' | 'gaussian' | 'ripple' | 'voronoi' | 'noise' | 'fractal' | 'custom' | 'sphere' | 'pyramid' | 'steps' | 'torus' | 'pagoda' | 'vase' | 'canyon' | 'image' | 'sketch' | 'crown' | 'spikes' | 'fabric' | 'crystal' | 'butterfly' | 'wavelet';
 
 export interface AppState {
   algorithm: AlgoType;
